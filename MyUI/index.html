@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>栖智 - 智能生活</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --spring: cubic-bezier(0.32, 0.72, 0, 1);
+      --transition: 0.4s var(--spring);
+    }
+
+    [data-theme="light"] {
+      --bg-base: #f9f4f0;
+      --bg-gradient: linear-gradient(145deg, #fffcf9 0%, #f4eae2 100%);
+      --card-bg: rgba(255, 255, 255, 0.65);
+      --card-border: rgba(255, 255, 255, 0.8);
+      --text: #3c2a20; --sub: #8a766a;
+      --accent: #5d8c83; --accent2: #84b3a8; --accent-light: #dcece8;
+      --soft-shadow: 0 8px 20px rgba(93, 140, 131, 0.08);
+      --nav-bg: rgba(255, 255, 255, 0.85);
+    }
+
+    [data-theme="dark"] {
+      --bg-base: #141211;
+      --bg-gradient: linear-gradient(145deg, #1a1716 0%, #100d0c 100%);
+      --card-bg: rgba(45, 40, 38, 0.65);
+      --card-border: rgba(255, 255, 255, 0.06);
+      --text: #f2ebe5; --sub: #9e8e84;
+      --accent: #6b9e94; --accent2: #92c4b8; --accent-light: #243632;
+      --soft-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      --nav-bg: rgba(30, 27, 26, 0.85);
+    }
+
+    body, html {
+      width: 100%; height: 100%; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      background: var(--bg-base);
+    }
+
+    .app {
+      width: 100vw; height: 100vh; position: relative;
+      background-image: var(--bg-gradient); color: var(--text);
+      transition: background var(--transition), color var(--transition);
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute; inset: 0; 
+      padding: env(safe-area-inset-top, 40px) 20px calc(env(safe-area-inset-bottom, 20px) + 90px); 
+      overflow-y: auto; opacity: 0; transform: scale(0.96); pointer-events: none;
+      transition: opacity 0.3s var(--spring), transform 0.3s var(--spring);
+    }
+    .page.active { opacity: 1; transform: scale(1); pointer-events: auto; }
+    .page::-webkit-scrollbar { display: none; }
+
+    .glass-card {
+      background: var(--card-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-radius: 24px; border: 1px solid var(--card-border); box-shadow: var(--soft-shadow);
+      padding: 16px; transition: var(--transition);
+    }
+    .glass-card:active { transform: scale(0.98); }
+
+    .primary-btn {
+      width: 100%; height: 52px; border: 0; border-radius: 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; transition: 0.2s;
+    }
+    .primary-btn:active { transform: scale(0.95); }
+
+    .input {
+      width: 100%; height: 50px; border: 0; border-radius: 16px; background: rgba(120,120,120,0.1);
+      color: var(--text); padding: 0 16px; margin-bottom: 12px; font-size: 15px; outline: none;
+    }
+
+    .top-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .hello { font-size: 26px; font-weight: 800; }
+    .sub { color: var(--sub); font-size: 13px; margin-top: 4px; }
+    .section-title { font-size: 18px; font-weight: 700; margin: 20px 0 12px; display: flex; justify-content: space-between; }
+    
+    .scroll-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+    .scroll-row::-webkit-scrollbar { display: none; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    .recommend-card { background: linear-gradient(135deg, var(--accent-light), var(--card-bg)); border-left: 4px solid var(--accent); }
+    .scene-pill { flex: 0 0 130px; text-align: center; }
+    .device-card { position: relative; }
+    .switch {
+      width: 46px; height: 28px; border-radius: 99px; background: rgba(150,150,150,0.3);
+      position: absolute; right: 12px; bottom: 12px; cursor: pointer; transition: 0.3s;
+    }
+    .switch::after {
+      content: ""; position: absolute; width: 20px; height: 20px; background: #fff;
+      border-radius: 50%; top: 4px; left: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); transition: 0.3s var(--spring);
+    }
+    .switch.on { background: var(--accent); }
+    .switch.on::after { transform: translateX(18px); }
+
+    /* 商城 */
+    .mall-category { display: flex; justify-content: space-between; text-align: center; margin-bottom: 16px;}
+    .cat-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); }
+    .cat-icon { width: 48px; height: 48px; border-radius: 16px; background: var(--card-bg); display: flex; align-items: center; justify-content: center; font-size: 22px;}
+    .product-card { padding: 12px; display: flex; flex-direction: column; }
+    .product-img { height: 100px; background: rgba(150,150,150,0.1); border-radius: 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; font-size: 40px; }
+    .product-price { color: #e76f51; font-weight: 700; font-size: 16px; margin-top: auto; display: flex; justify-content: space-between; align-items: center;}
+    .add-cart { width: 24px; height: 24px; background: var(--accent); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+
+    /* 社区 */
+    .community-topic { padding: 10px 16px; border-radius: 99px; white-space: nowrap; font-size: 13px; font-weight: 600; }
+    .post-card { margin-bottom: 16px; }
+    .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .post-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold;}
+    .post-img { height: 140px; background: rgba(150,150,150,0.1); border-radius: 12px; margin: 10px 0; display: flex; align-items: center; justify-content: center; font-size: 30px;}
+    .post-actions { display: flex; gap: 20px; color: var(--sub); font-size: 13px; }
+
+    /* 数据 */
+    .chart-container { height: 160px; display: flex; align-items: flex-end; gap: 10px; padding-top: 20px; }
+    .bar { flex: 1; background: var(--accent); border-radius: 6px 6px 4px 4px; position: relative; opacity: 0.8; }
+    .bar span { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--sub); }
+    
+    /* 我的 */
+    .order-row { display: flex; justify-content: space-between; padding: 10px 10px; }
+    .order-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--text); }
+    .order-item i { font-size: 22px; font-style: normal; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--card-border); }
+    .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    /* 底部导航 - 修改为默认显示 */
+    .bottom-nav {
+      position: absolute; bottom: calc(env(safe-area-inset-bottom, 20px) + 10px); left: 20px; right: 20px; height: 72px;
+      background: var(--nav-bg); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+      border-radius: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: flex;
+      justify-content: space-around; align-items: center; z-index: 400;
+      border: 1px solid var(--card-border); transition: var(--transition);
+    }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--sub); cursor: pointer; transition: 0.3s; }
+    .nav-item i { font-style: normal; font-size: 20px; transition: transform 0.3s var(--spring); }
+    .nav-item.active { color: var(--accent); font-weight: 700; }
+    .nav-item.active i { transform: translateY(-4px) scale(1.1); }
+
+    .toast { position: absolute; top: env(safe-area-inset-top, 40px); left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(0,0,0,0.75); color: #fff; padding: 12px 20px; border-radius: 99px; font-size: 13px; opacity: 0; pointer-events: none; transition: 0.3s var(--spring); z-index: 1000; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="app" id="appRoot" data-theme="light">
+    
+    <!-- 首页 (直接显示) -->
+    <section class="page active" id="homePage">
+      <div class="top-header">
+        <div><div class="hello">栖智</div><div class="sub" id="helloName">早上好，让生活更简单</div></div>
+        <div style="width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;">林</div>
+      </div>
+
+      <div class="section-title" style="margin-top:0;">智能推荐</div>
+      <div class="glass-card recommend-card">
+        <div style="font-weight:700; font-size:16px; margin-bottom:4px;">✨ 晨起唤醒方案</div>
+        <div class="sub" style="font-size:12px; margin-bottom:12px;">根据您的习惯，推荐联动窗帘与柔和灯光。</div>
+        <button class="primary-btn" style="height:36px; width:100px; font-size:13px; border-radius:12px;" onclick="toast('已一键应用推荐方案')">一键应用</button>
+      </div>
+
+      <div class="section-title">场景模式 <span>编辑</span></div>
+      <div class="scroll-row">
+        <div class="glass-card scene-pill" onclick="toast('回家模式已启动')"><div style="font-size:24px;margin-bottom:6px">🏡</div><b style="font-size:14px">回家模式</b></div>
+        <div class="glass-card scene-pill" onclick="toast('离家安防已启动')"><div style="font-size:24px;margin-bottom:6px">🚪</div><b style="font-size:14px">离家模式</b></div>
+        <div class="glass-card scene-pill" onclick="toast('睡眠模式已启动')"><div style="font-size:24px;margin-bottom:6px">🌙</div><b style="font-size:14px">睡眠模式</b></div>
+      </div>
+
+      <div class="section-title">常用设备控制 <span>全部分组</span></div>
+      <div class="grid-2">
+        <div class="glass-card device-card">
+          <div style="font-size:24px;margin-bottom:8px">💡</div><h4 style="font-size:15px">客厅主灯</h4><p class="sub" style="font-size:12px">已开启</p>
+          <div class="switch on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="glass-card device-card">
+          <div style="font-size:24px;margin-bottom:8px">❄️</div><h4 style="font-size:15px">主卧空调</h4><p class="sub" style="font-size:12px">26°C 制冷</p>
+          <div class="switch on" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="glass-card device-card">
+          <div style="font-size:24px;margin-bottom:8px">🪟</div><h4 style="font-size:15px">智能窗帘</h4><p class="sub" style="font-size:12px">已关闭</p>
+          <div class="switch" onclick="this.classList.toggle('on')"></div>
+        </div>
+        <div class="glass-card device-card">
+          <div style="font-size:24px;margin-bottom:8px">🔒</div><h4 style="font-size:15px">智能门锁</h4><p class="sub" style="font-size:12px">安全上锁</p>
+          <div class="switch" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 商城 -->
+    <section class="page" id="mallPage">
+      <div class="top-header" style="margin-bottom:10px;">
+        <div class="hello">栖智商城</div><span style="font-size:20px;">🛒</span>
+      </div>
+      <input class="input" placeholder="搜索智能家电、安防设备..." style="background:var(--card-bg); border:1px solid var(--card-border);"/>
+
+      <div class="mall-category" style="margin-top:16px;">
+        <div class="cat-item"><div class="cat-icon">📺</div>智能家电</div>
+        <div class="cat-item"><div class="cat-icon">🛡</div>智能安防</div>
+        <div class="cat-item"><div class="cat-icon">💡</div>智能照明</div>
+        <div class="cat-item"><div class="cat-icon">🌡</div>环境调节</div>
+      </div>
+
+      <div class="section-title">热卖推荐</div>
+      <div class="grid-2">
+        <div class="glass-card product-card" onclick="toast('查看商品详情')">
+          <div class="product-img">📷</div><div style="font-size:14px; font-weight:600; line-height:1.4;">栖智超清云台摄像头</div>
+          <div class="sub" style="font-size:11px; margin-top:4px;">360°全景监控</div>
+          <div class="product-price">¥ 199 <div class="add-cart" onclick="event.stopPropagation(); toast('已加入购物车')">＋</div></div>
+        </div>
+        <div class="glass-card product-card" onclick="toast('查看商品详情')">
+          <div class="product-img">💨</div><div style="font-size:14px; font-weight:600; line-height:1.4;">智能空气净化器 Pro</div>
+          <div class="sub" style="font-size:11px; margin-top:4px;">除甲醛异味</div>
+          <div class="product-price">¥ 899 <div class="add-cart" onclick="event.stopPropagation(); toast('已加入购物车')">＋</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 社区 -->
+    <section class="page" id="communityPage">
+      <div class="top-header" style="margin-bottom:10px;">
+        <div class="hello">社区广场</div><span style="font-size:24px;">📝</span>
+      </div>
+      <div class="scroll-row" style="margin-bottom: 20px;">
+        <div class="glass-card community-topic" style="background:var(--accent);color:#fff;border:none;">🔥 智能避坑指南</div>
+        <div class="glass-card community-topic">✨ 晒晒我的桌面</div>
+        <div class="glass-card community-topic">💡 自动化分享</div>
+      </div>
+      <div class="glass-card post-card">
+        <div class="post-header">
+          <div class="post-avatar">A</div>
+          <div><div style="font-size:14px;font-weight:600;">科技宅小A</div><div class="sub" style="font-size:11px;">2小时前 发布</div></div>
+          <div style="margin-left:auto; color:var(--accent); font-size:13px; font-weight:bold;">+ 关注</div>
+        </div>
+        <div style="font-size:14px; line-height:1.5;">分享一个超级好用的“观影模式”自动化配置！一键沉浸式体验，简直太香了！👇</div>
+        <div class="post-img">🎬</div>
+        <div class="post-actions">
+          <span onclick="toast('点赞成功')">🤍 128</span><span onclick="toast('打开评论')">💬 45</span><span onclick="toast('已转发')">🔄 分享</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 数据 -->
+    <section class="page" id="dataPage">
+      <div class="top-header">
+        <div><div class="hello">数据看板</div><div class="sub">家庭能耗与使用习惯</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="glass-card">
+          <div class="sub" style="font-size:12px;">本月累计耗电</div>
+          <div style="font-size:26px; font-weight:800; margin:6px 0;">145 <small style="font-size:14px;">度</small></div>
+          <div class="sub" style="font-size:11px; color:#e76f51;">↑ 比上月增加 12%</div>
+        </div>
+        <div class="glass-card">
+          <div class="sub" style="font-size:12px;">设备异常次数</div>
+          <div style="font-size:26px; font-weight:800; margin:6px 0;">0 <small style="font-size:14px;">次</small></div>
+          <div class="sub" style="font-size:11px; color:var(--accent);">所有设备状态良好</div>
+        </div>
+      </div>
+      <div class="section-title">近7日能耗分析</div>
+      <div class="glass-card" style="padding-bottom:30px;">
+        <div class="chart-container">
+          <div class="bar" style="height: 40%;"><span>周一</span></div>
+          <div class="bar" style="height: 60%;"><span>周二</span></div>
+          <div class="bar" style="height: 45%;"><span>周三</span></div>
+          <div class="bar" style="height: 80%;"><span>周四</span></div>
+          <div class="bar" style="height: 50%;"><span>周五</span></div>
+          <div class="bar" style="height: 90%;"><span>周六</span></div>
+          <div class="bar" style="height: 70%;"><span>周日</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 我的 -->
+    <section class="page" id="profilePage">
+      <div class="top-header" style="margin-bottom:0;">
+        <div class="hello">我的</div><span style="font-size:20px;" onclick="toast('打开消息中心')">🔔</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px; margin: 20px 0 30px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;">林</div>
+        <div>
+          <div style="font-size:20px; font-weight:700; margin-bottom:4px;">林林的温馨小家</div>
+          <div class="sub" style="font-size:13px;">账号安全：高 | 积分：1250</div>
+        </div>
+      </div>
+      <div class="glass-card" style="margin-bottom:20px; padding: 16px 10px;">
+        <div style="font-weight:700; font-size:15px; margin:0 10px 16px;">我的订单</div>
+        <div class="order-row">
+          <div class="order-item" onclick="toast('查看待付款')"><i>💳</i>待付款</div>
+          <div class="order-item" onclick="toast('查看待发货')"><i>📦</i>待发货</div>
+          <div class="order-item" onclick="toast('查看待收货')"><i>🚚</i>待收货</div>
+          <div class="order-item" onclick="toast('查看已完成')"><i>✅</i>已完成</div>
+        </div>
+      </div>
+      <div class="section-title">系统设置</div>
+      <div class="glass-card" style="padding: 0 16px;">
+        <div class="setting-row">
+          <div><div style="font-weight:600; font-size:15px;">🌙 深色模式</div><div class="sub" style="font-size:11px; margin-top:2px">保护夜间视力</div></div>
+          <div class="switch" id="themeSwitch" onclick="toggleTheme()"></div>
+        </div>
+        <div class="setting-row">
+          <div><div style="font-weight:600; font-size:15px;">📢 消息通知</div></div>
+          <div class="switch on" onclick="this.classList.toggle('on')"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 底部导航 -->
+    <nav class="bottom-nav" id="nav">
+      <div class="nav-item active" data-target="homePage" onclick="switchTab('homePage')"><i>🏠</i><span>首页</span></div>
+      <div class="nav-item" data-target="mallPage" onclick="switchTab('mallPage')"><i>🛒</i><span>商城</span></div>
+      <div class="nav-item" data-target="communityPage" onclick="switchTab('communityPage')"><i>💬</i><span>社区</span></div>
+      <div class="nav-item" data-target="dataPage" onclick="switchTab('dataPage')"><i>📊</i><span>数据</span></div>
+      <div class="nav-item" data-target="profilePage" onclick="switchTab('profilePage')"><i>👤</i><span>我的</span></div>
+    </nav>
+    <div class="toast" id="toast">操作成功</div>
+  </div>
+
+  <script>
+    function toast(msg) {
+      const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show');
+      clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => el.classList.remove('show'), 1500);
+    }
+    function switchTab(id) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.target === id));
+    }
+    function toggleTheme() {
+      const app = document.getElementById('appRoot'); const isDark = app.getAttribute('data-theme') === 'dark';
+      app.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      document.getElementById('themeSwitch').classList.toggle('on', !isDark);
+    }
+  </script>
+</body>
+</html>
