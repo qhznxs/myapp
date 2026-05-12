@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>牵途 - 亲子旅游</title>
+    <style>
+        :root {
+            /* 🔴 专属暖橙色主题 🔴 */
+            --primary-color: #F27A33; 
+            --sub-color: #F0B389;    
+            --bg-color: #FCF9F2;      
+            --text-dark: #3A2F29;     
+        }
+
+        /* 修复宽屏拉伸：全局背景与居中控制 */
+        body, html {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            background-color: #EFEFEF; /* 电脑端两侧的背景色 */
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+            overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* 📱 核心：手机模拟容器 📱 */
+        #app-wrapper {
+            position: relative;
+            width: 100%; height: 100%;
+            max-width: 430px; /* 限制最大宽度为手机比例 */
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.05);
+        }
+
+        /* 当屏幕很宽时（电脑/平板），给它加上手机圆角和边框外观 */
+        @media (min-width: 450px) {
+            #app-wrapper {
+                height: 90vh; /* 电脑上不顶满上下边缘 */
+                max-height: 850px;
+                border-radius: 40px; /* 手机圆角 */
+                border: 8px solid #222; /* 模拟手机边框 */
+                box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            }
+        }
+
+        /* ---------------- iOS 原版状态栏 ---------------- */
+        .ios-status-bar {
+            position: absolute; top: 0; left: 0; width: 100%; height: 44px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 25px; box-sizing: border-box; z-index: 9999;
+            font-size: 15px; font-weight: 600; color: var(--text-dark);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        }
+        .ios-icons { display: flex; align-items: center; gap: 6px; }
+        .ios-icons svg { height: 12px; fill: var(--text-dark); }
+        .wifi-icon { height: 13px !important; margin-right: 2px; }
+        .battery-body { width: 24px; height: 12px; border: 1px solid rgba(58,47,41,0.5); border-radius: 4px; position: relative; padding: 1.5px; box-sizing: border-box; display: flex; align-items: center; }
+        .battery-level { background: var(--text-dark); height: 100%; border-radius: 1.5px; transition: width 0.3s, background 0.3s; width: 100%; }
+        .battery-tip { position: absolute; right: -4px; top: 3.5px; width: 3px; height: 4px; background: rgba(58,47,41,0.5); border-radius: 0 2px 2px 0; }
+
+        /* ---------------- 页面基础 ---------------- */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; box-sizing: border-box;
+            background: var(--bg-color); padding: 54px 20px 85px; overflow-y: auto;
+        }
+        .screen.active { display: flex; animation: fadeSlide 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        @keyframes fadeSlide { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        ::-webkit-scrollbar { display: none; }
+
+        /* ---------------- 底部导航 (4个Tab) ---------------- */
+        .bottom-nav {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 80px;
+            background: rgba(252, 249, 242, 0.95); display: none; justify-content: space-around;
+            padding-bottom: 15px; box-sizing: border-box; align-items: center; 
+            border-top: 1px solid rgba(0,0,0,0.03); z-index: 100;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+        }
+        .nav-item { width: 25%; text-align: center; font-size: 10px; color: #A1A1A6; cursor: pointer; transition: 0.2s; }
+        .nav-item.active { color: var(--primary-color); font-weight: bold; transform: scale(1.05); }
+        .nav-icon { font-size: 24px; display: block; margin-bottom: 2px; }
+
+        .btn { background: var(--primary-color); color: white; border: none; padding: 16px; border-radius: 25px; font-size: 17px; font-weight: bold; width: 100%; cursor: pointer; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); opacity: 0.9; }
+        
+        /* 卡片基础 */
+        .real-card { background: white; border-radius: 20px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 8px 25px rgba(242, 122, 51, 0.05); }
+        .img-wrapper { width: 100%; height: 180px; background: #e0e0e0; position: relative; }
+        .img-wrapper img { width: 100%; height: 100%; object-fit: cover; }
+        .card-tag { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.6); color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; backdrop-filter: blur(4px); }
+
+        /* 社区瀑布流 */
+        .waterfall { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .post-card { background: white; border-radius: 12px; overflow: hidden; break-inside: avoid; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(242, 122, 51, 0.03); cursor: pointer; transition: 0.1s; }
+        .post-card:active { transform: scale(0.98); }
+        .post-card img { width: 100%; height: 140px; object-fit: cover; }
+        .post-info { padding: 10px; font-size: 13px; font-weight: 500; }
+        .post-user { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 11px; color: #888; font-weight: normal; }
+
+        /* 商城网格 */
+        .mall-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .mall-item { background: white; padding: 12px; border-radius: 18px; box-shadow: 0 4px 15px rgba(242, 122, 51, 0.03); cursor: pointer; }
+        .mall-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; margin-bottom: 10px; }
+
+        /* ---------------- 二级页面通用样式 ---------------- */
+        .sub-header { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px; font-size: 18px; font-weight: bold; }
+        .back-btn { position: absolute; left: 0; font-size: 28px; color: var(--text-dark); cursor: pointer; padding: 0 10px; line-height: 1; }
+        .list-row { background: white; padding: 18px 20px; border-radius: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(242, 122, 51, 0.03); font-weight: 500; cursor: pointer; }
+
+        /* 1. 聊天界面样式 */
+        .chat-area { flex: 1; overflow-y: auto; padding-bottom: 70px; display: flex; flex-direction: column; gap: 15px; }
+        .chat-bubble { max-width: 75%; padding: 12px 16px; border-radius: 20px; font-size: 15px; line-height: 1.4; word-break: break-all; }
+        .bubble-ai { background: white; color: var(--text-dark); align-self: flex-start; border-bottom-left-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+        .bubble-user { background: var(--primary-color); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 2px 10px rgba(242, 122, 51, 0.2); }
+        .chat-input-bar { position: absolute; bottom: 0; left: 0; width: 100%; background: var(--bg-color); padding: 12px 20px 25px; box-sizing: border-box; display: flex; gap: 10px; border-top: 1px solid rgba(0,0,0,0.05); }
+        .chat-input-bar input { flex: 1; border: none; padding: 12px 15px; border-radius: 20px; background: white; font-size: 15px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); outline: none; }
+        .chat-input-bar button { background: var(--primary-color); border: none; color: white; padding: 0 20px; border-radius: 20px; font-weight: bold; }
+
+        /* 2. 社区详情与评论样式 */
+        .detail-img { width: 100%; height: 350px; object-fit: cover; }
+        .comment-item { display: flex; gap: 12px; margin-bottom: 20px; }
+        .comment-avatar { width: 36px; height: 36px; background: #FDE8D7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+
+        /* 支付弹窗 */
+        #pay-sheet { position: absolute; bottom: 0; left: 0; width: 100%; background: white; border-radius: 25px 25px 0 0; padding: 20px; box-sizing: border-box; z-index: 10000; transform: translateY(100%); transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 -10px 40px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
+        #pay-sheet.show { transform: translateY(0); }
+        .pay-mask { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; opacity: 0; transition: 0.3s; }
+        .pay-btn { padding: 16px; border-radius: 15px; font-size: 16px; font-weight: bold; border: none; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; color: white; }
+        .pay-wx { background: #07C160; }
+        .pay-zfb { background: #1677FF; }
+
+        /* 提示框 */
+        #toast { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(58, 47, 41, 0.9); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 500; z-index: 99999; opacity: 0; transition: 0.3s; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<!-- 📱 外层增加的手机模拟容器 📱 -->
+<div id="app-wrapper">
+
+    <!-- 高仿 iOS 状态栏 -->
+    <div class="ios-status-bar">
+        <div id="clock">09:41</div>
+        <div class="ios-icons">
+            <svg viewBox="0 0 16 12"><path d="M1 12h2V8H1v4zm4 0h2V6H5v6zm4 0h2V3H9v9zm4 0h2V0h-2v12z"/></svg>
+            <svg class="wifi-icon" viewBox="0 0 336 236"><path d="M168 236A34 34 0 10168 168 34 34 0 00168 236Z"/><path d="M84 135c45-42 123-42 168 0 7 6 18 6 25-1 6-7 6-18-1-24-58-54-156-54-214 0-7 6-7 17-1 24 6 7 17 7 23 1Z"/><path d="M168 20c78 0 151 31 206 82 7 6 18 6 25-1 6-7 6-18-1-25C337 20 256-15 168-15S0 20-60 76c-7 7-6 18 0 25 7 7 18 7 25 1 55-51 128-82 206-82Z"/></svg>
+            <div class="battery-body"><div class="battery-level" id="batt-level"></div><div class="battery-tip"></div></div>
+        </div>
+    </div>
+
+    <div id="toast">提示信息</div>
+
+    <!-- 🚀 0. 引导登录页 🚀 -->
+    <div id="pg-guide" class="screen active" style="align-items: center; justify-content: center; text-align: center;">
+        <!-- ⭐️ 你的定制 Logo ⭐️ -->
+        <img src="./logo.jpg" alt="牵途Logo" style="width: 130px; height: 130px; border-radius: 30px; margin-bottom: 25px; box-shadow: 0 15px 35px rgba(242, 122, 51, 0.25);">
+        <h1 style="font-size: 32px; margin-bottom: 5px; color: var(--text-dark);">登录牵途</h1>
+        <p style="color: #A0968F; margin-bottom: 40px;">带孩子发现更大的世界</p>
+        
+        <button class="btn" style="background:#07C160; margin-bottom: 15px;" onclick="loginSuccess()">🟢 微信一键登录</button>
+        <button class="btn" style="background:transparent; color:var(--text-dark); border:1px solid #D5CCC4;" onclick="loginSuccess()">输入手机号登录</button>
+    </div>
+
+    <!-- 主TAB1. 发现页 -->
+    <div id="pg-home" class="screen">
+        <h2 style="margin-bottom: 15px; margin-top: 5px;">周末去哪玩</h2>
+        <div class="real-card" onclick="showToast('正在打开 星空露营地 详情...')">
+            <div class="img-wrapper"><img src="https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?w=600&q=80"><div class="card-tag" style="background:var(--primary-color);">⭐ 9.8 推荐</div></div>
+            <div style="padding: 16px;"><div style="font-size: 18px; font-weight: bold;">星空探索 · 亲子露营季</div><div style="font-size: 13px; color: #888; margin-top: 6px;">📍 郊野森林公园 | 含篝火晚会</div></div>
+        </div>
+        <div class="real-card" onclick="showToast('正在打开 海洋世界 详情...')">
+            <div class="img-wrapper"><img src="https://images.unsplash.com/photo-1582967788606-a171c1080cb0?w=600&q=80"><div class="card-tag">🐬 热门打卡</div></div>
+            <div style="padding: 16px;"><div style="font-size: 18px; font-weight: bold;">梦幻海洋世界 · 海豚剧场</div><div style="font-size: 13px; color: #888; margin-top: 6px;">📍 滨海新区 | 全室内恒温观赏</div></div>
+        </div>
+        <div class="real-card" onclick="showToast('正在打开 农场采摘 详情...')">
+            <div class="img-wrapper"><img src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?w=600&q=80"><div class="card-tag">🍓 应季采摘</div></div>
+            <div style="padding: 16px;"><div style="font-size: 18px; font-weight: bold;">阳光童话农场 · 有机蔬果采摘</div><div style="font-size: 13px; color: #888; margin-top: 6px;">📍 东郊生态村 | 体验农耕乐趣</div></div>
+        </div>
+        <div class="real-card" onclick="showToast('正在打开 科学博物馆 详情...')">
+            <div class="img-wrapper"><img src="https://images.unsplash.com/photo-1561518776-e76a5e48f731?w=600&q=80"><div class="card-tag">🔬 知识科普</div></div>
+            <div style="padding: 16px;"><div style="font-size: 18px; font-weight: bold;">自然科学馆 · 微观世界特展</div><div style="font-size: 13px; color: #888; margin-top: 6px;">📍 市中心文化广场 | 寓教于乐</div></div>
+        </div>
+    </div>
+
+    <!-- 主TAB2. 社区页 -->
+    <div id="pg-community" class="screen">
+        <h2 style="margin-bottom: 15px; margin-top: 5px;">宝妈宝爸分享</h2>
+        <div class="waterfall">
+            <div class="post-card" onclick="openPostDetail(1)">
+                <img src="https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=300&q=80">
+                <div class="post-info">周末带娃去喂小鹿啦，宝宝超级开心！<div class="post-user"><span>🐰 安安妈</span> <span class="like-btn" onclick="toggleLike(this, event)">🤍 128</span></div></div>
+            </div>
+            <div class="post-card" onclick="openPostDetail(2)">
+                <img src="https://images.unsplash.com/photo-1471440671318-55bdbb772f93?w=300&q=80">
+                <div class="post-info">被问爆了的宝藏亲子餐厅，强推！<div class="post-user"><span>🐻 壮壮爸</span> <span class="like-btn" onclick="toggleLike(this, event)">🤍 85</span></div></div>
+            </div>
+            <div class="post-card" onclick="openPostDetail(3)">
+                <img src="https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=300&q=80">
+                <div class="post-info">这几个出行神器，解决路上的所有麻烦。<div class="post-user"><span>🌸 琳琳妈</span> <span class="like-btn" onclick="toggleLike(this, event)">🤍 342</span></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主TAB3. 商城页 -->
+    <div id="pg-mall" class="screen">
+        <h2 style="margin-bottom: 15px; margin-top: 5px;">亲子精选商城</h2>
+        <div class="mall-grid">
+            <div class="mall-item" onclick="openPay('儿童防走失背包', 129)"><img src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&q=80"><div style="font-size: 14px; font-weight: 500;">儿童防走失背包</div><div style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">¥ 129</div></div>
+            <div class="mall-item" onclick="openPay('亲子拍立得', 299)"><img src="https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=300&q=80"><div style="font-size: 14px; font-weight: 500;">亲子拍立得相机</div><div style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">¥ 299</div></div>
+            <div class="mall-item" onclick="openPay('秒开沙滩帐篷', 188)"><img src="https://images.unsplash.com/photo-1523987355523-c7b5b0dd90a7?w=300&q=80"><div style="font-size: 14px; font-weight: 500;">秒开式沙滩帐篷</div><div style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">¥ 188</div></div>
+            <div class="mall-item" onclick="openPay('全遮防晒帽', 59)"><img src="https://images.unsplash.com/photo-1572307480813-ceb0e59d8325?w=300&q=80"><div style="font-size: 14px; font-weight: 500;">全遮挡儿童防晒帽</div><div style="color: var(--primary-color); font-weight: bold; margin-top: 5px;">¥ 59</div></div>
+        </div>
+    </div>
+
+    <!-- 主TAB4. 我的页 -->
+    <div id="pg-user" class="screen">
+        <div style="display: flex; align-items: center; margin-bottom: 30px; margin-top: 10px;" onclick="openSubPage('pg-profile', 'pg-user')">
+            <div style="width: 70px; height: 70px; background: white; border-radius: 50%; font-size: 35px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(242, 122, 51, 0.1);">👩</div>
+            <div style="margin-left: 15px;">
+                <div style="font-size: 22px; font-weight: bold;">安安妈妈 <span style="font-size: 14px; color: #ccc;">></span></div>
+                <div style="font-size: 13px; color: var(--primary-color); background: #FDE8D7; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 5px;">🏅 查看或编辑个人资料</div>
+            </div>
+        </div>
+        
+        <div class="list-row" onclick="openSubPage('pg-itinerary', 'pg-user')"><span>📝 我的行程订单</span> <span style="color: #D5CCC4;">></span></div>
+        <div class="list-row" onclick="openSubPage('pg-favorites', 'pg-user')"><span>⭐ 我的收藏</span> <span style="color: #D5CCC4;">></span></div>
+        <div class="list-row" onclick="openSubPage('pg-chat', 'pg-user')"><span>🤖 AI 专属旅游客服</span> <span style="color: #D5CCC4;">></span></div>
+        <button class="btn" style="background: #FDE8D7; color: var(--primary-color); margin-top: 20px; box-shadow: none;" onclick="location.reload()">退出登录</button>
+    </div>
+
+
+    <!-- ==================== 二级页面区域 ==================== -->
+
+    <!-- 二级页面：个人资料设置 -->
+    <div id="pg-profile" class="screen" style="background: #F5EFEB;">
+        <div class="sub-header"><span class="back-btn" onclick="closeSubPage('pg-user')">‹</span>个人资料</div>
+        <div style="background: white; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+            <div style="padding: 15px 20px; border-bottom: 1px solid #F5EFEB; display: flex; justify-content: space-between; align-items: center;"><span>更换头像</span><div style="font-size: 24px;">👩</div></div>
+            <div style="padding: 15px 20px; border-bottom: 1px solid #F5EFEB; display: flex; justify-content: space-between;"><span>昵称</span><span style="color: #888;">安安妈妈</span></div>
+            <div style="padding: 15px 20px; border-bottom: 1px solid #F5EFEB; display: flex; justify-content: space-between;"><span>宝宝年龄</span><span style="color: #888;">4 岁</span></div>
+            <div style="padding: 15px 20px; display: flex; justify-content: space-between;"><span>绑定手机</span><span style="color: #888;">138****8888</span></div>
+        </div>
+        <button class="btn" onclick="showToast('保存成功'); closeSubPage('pg-user')">保存修改</button>
+    </div>
+
+    <!-- 二级页面：我的收藏 -->
+    <div id="pg-favorites" class="screen">
+        <div class="sub-header"><span class="back-btn" onclick="closeSubPage('pg-user')">‹</span>我的收藏</div>
+        <h3 style="font-size: 15px; color: #A0968F; margin-bottom: 15px;">收藏的地点 (2)</h3>
+        <div class="real-card" onclick="showToast('进入露营地')">
+            <div class="img-wrapper"><img src="https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?w=600&q=80"></div>
+            <div style="padding: 12px; font-weight: bold;">星空探索 · 亲子露营季</div>
+        </div>
+        <div class="real-card" onclick="showToast('进入农场')">
+            <div class="img-wrapper"><img src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?w=600&q=80"></div>
+            <div style="padding: 12px; font-weight: bold;">阳光童话农场 · 有机蔬果采摘</div>
+        </div>
+    </div>
+
+    <!-- 二级页面：我的行程 -->
+    <div id="pg-itinerary" class="screen">
+        <div class="sub-header"><span class="back-btn" onclick="closeSubPage('pg-user')">‹</span>我的行程</div>
+        <h3 style="font-size: 15px; color: #A0968F; margin-bottom: 10px;">即将出行 (1)</h3>
+        <div style="background: white; border-radius: 16px; padding: 16px; border-left: 5px solid var(--primary-color); box-shadow: 0 4px 15px rgba(242, 122, 51, 0.05);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-weight: bold; font-size: 16px;">星空探索 · 亲子露营季</span><span style="color: white; background: var(--primary-color); padding:2px 6px; border-radius:4px; font-size: 11px;">待出行</span>
+            </div>
+            <div style="font-size: 13px; color: #888; line-height: 1.6;">📅 2026年5月16日<br>📍 郊野森林公园</div>
+        </div>
+    </div>
+
+    <!-- 二级页面：AI专属客服聊天界面 -->
+    <div id="pg-chat" class="screen" style="padding-bottom: 0;">
+        <div class="sub-header" style="margin-bottom: 10px;"><span class="back-btn" onclick="closeSubPage('pg-user')">‹</span>专属旅游客服</div>
+        <div class="chat-area" id="chat-box">
+            <div class="chat-bubble bubble-ai">您好！我是牵途AI亲子旅游管家🤖。请问您想去哪里玩？或者需要我为您推荐周末遛娃好去处吗？</div>
+        </div>
+        <div class="chat-input-bar">
+            <input type="text" id="chat-input" placeholder="输入您的问题，如：推荐室内游乐场">
+            <button onclick="sendChat()">发送</button>
+        </div>
+    </div>
+
+    <!-- 二级页面：社区动态详情及动态评论区 -->
+    <div id="pg-post-detail" class="screen" style="padding: 0; background: white;">
+        <div style="position: absolute; top: 40px; left: 20px; width: 36px; height: 36px; background: rgba(0,0,0,0.5); border-radius: 50%; color: white; font-size: 24px; display: flex; align-items: center; justify-content: center; z-index: 10; cursor: pointer; backdrop-filter: blur(5px);" onclick="closeSubPage('pg-community')">‹</div>
+        <img id="detail-top-img" class="detail-img" src="">
+        <div style="padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <div style="width: 40px; height: 40px; background: var(--primary-color); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">👩</div>
+                <div style="font-weight: bold;" id="detail-author">作者分享</div>
+            </div>
+            <div id="detail-text" style="font-size: 15px; line-height: 1.6; color: var(--text-dark); margin-bottom: 30px;"></div>
+            <div style="height: 8px; background: var(--bg-color); margin: 0 -20px 20px;"></div>
+            <h3 style="font-size: 16px; margin-bottom: 20px;">真实评论</h3>
+            <div id="detail-comments-container"></div>
+        </div>
+    </div>
+
+    <!-- ==================== 通用弹窗与底栏 ==================== -->
+
+    <!-- 支付底部弹窗 -->
+    <div class="pay-mask" id="pay-mask" onclick="closePay()"></div>
+    <div id="pay-sheet">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: bold; margin-bottom: 10px;">
+            <span id="pay-title">确认付款</span>
+            <span onclick="closePay()" style="color: #999; font-size: 24px; cursor:pointer;">×</span>
+        </div>
+        <div style="text-align: center; font-size: 36px; font-weight: bold; margin-bottom: 20px; color: var(--primary-color);" id="pay-price">¥ 0.00</div>
+        <button class="pay-btn pay-wx" onclick="processPay('微信支付')">微信支付</button>
+        <button class="pay-btn pay-zfb" onclick="processPay('支付宝')">支付宝</button>
+    </div>
+
+    <!-- 底部导航栏 -->
+    <div id="bottom-nav" class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('pg-home', this)"><span class="nav-icon">🎡</span>发现</div>
+        <div class="nav-item" onclick="switchTab('pg-community', this)"><span class="nav-icon">📝</span>社区</div>
+        <div class="nav-item" onclick="switchTab('pg-mall', this)"><span class="nav-icon">🛍️</span>商城</div>
+        <div class="nav-item" onclick="switchTab('pg-user', this)"><span class="nav-icon">👤</span>我的</div>
+    </div>
+
+</div> <!-- /app-wrapper 结束 -->
+
+    <script>
+        // 1. 实时时间 & 电池电量
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        }, 1000);
+
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then(b => {
+                document.getElementById('batt-level').style.width = (b.level * 100) + '%';
+                b.addEventListener('levelchange', function() { document.getElementById('batt-level').style.width = (this.level * 100) + '%'; });
+            });
+        } else {
+            document.getElementById('batt-level').style.width = '85%';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg; toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 2000);
+        }
+
+        // 登录成功逻辑
+        function loginSuccess() {
+            showToast('✅ 登录成功');
+            setTimeout(() => {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('pg-home').classList.add('active'); 
+                document.getElementById('bottom-nav').style.display = 'flex'; 
+            }, 600);
+        }
+
+        // 修改：让特定屏幕置顶（解决由于外层包裹导致的滚动位置问题）
+        function switchTab(id, el) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById(id).scrollTop = 0; // 重置该页面的滚动条
+        }
+
+        function openSubPage(targetId, fromId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(targetId).classList.add('active');
+            document.getElementById('bottom-nav').style.display = 'none'; 
+            document.getElementById(targetId).scrollTop = 0; // 重置该页面的滚动条
+        }
+
+        function closeSubPage(backToId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(backToId).classList.add('active');
+            document.getElementById('bottom-nav').style.display = 'flex'; 
+        }
+
+        // 社区动态数据
+        const postsData = {
+            1: {
+                img: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=500&q=80', author: '🐰 安安妈',
+                text: '周末带娃去喂小鹿啦，宝宝超级开心！这里的环境太棒了，草地很干净，没有任何异味。推荐大家自己带点胡萝卜，园区的比较贵。',
+                comments: [ { avatar: '👱‍♂️', name: '浩浩爸爸', time: '2小时前', text: '小鹿好可爱，这个农场具体在哪呀？' }, { avatar: '👩', name: '萱萱妈', time: '5小时前', text: '我们上周也去了！记得一定要早点去哦。' } ]
+            },
+            2: {
+                img: 'https://images.unsplash.com/photo-1471440671318-55bdbb772f93?w=500&q=80', author: '🐻 壮壮爸',
+                text: '被问爆了的宝藏亲子餐厅，强推！菜品营养健康，最重要的是有超级大的海洋球池！孩子们在里面玩了一下午。',
+                comments: [ { avatar: '👨‍👩‍👦', name: '周末达人', time: '1小时前', text: '儿童餐真的绝了，造型很可爱！' }, { avatar: '👱‍♀️', name: '彤彤妈', time: '昨天', text: '请问海洋球池卫生怎么样？' } ]
+            },
+            3: {
+                img: 'https://images.unsplash.com/photo-1516627145497-ae6968895b74?w=500&q=80', author: '🌸 琳琳妈',
+                text: '这几个出行神器，解决路上的所有麻烦。特别是这个防走丢背包和便携小风扇，人多的时候太安心了。',
+                comments: [ { avatar: '👴', name: '退休带娃', time: '3小时前', text: '这个背包哪里有卖？' }, { avatar: '👩', name: '豆豆妈', time: '4小时前', text: '防走丢绳简直是人类之光。' } ]
+            }
+        };
+
+        function openPostDetail(postId) {
+            const data = postsData[postId];
+            document.getElementById('detail-top-img').src = data.img;
+            document.getElementById('detail-author').innerText = data.author;
+            document.getElementById('detail-text').innerText = data.text;
+            
+            const container = document.getElementById('detail-comments-container');
+            container.innerHTML = ''; 
+            data.comments.forEach(c => {
+                container.innerHTML += `<div class="comment-item"><div class="comment-avatar">${c.avatar}</div><div style="flex: 1;"><div style="font-size: 13px; color: #888; margin-bottom: 4px;">${c.name}</div><div style="font-size: 14px;">${c.text}</div><div style="font-size: 11px; color: #aaa; margin-top: 6px;">${c.time}</div></div></div>`;
+            });
+            openSubPage('pg-post-detail', 'pg-community');
+        }
+
+        function toggleLike(element, event) {
+            event.stopPropagation(); 
+            if (element.innerText.includes('🤍')) {
+                let num = parseInt(element.innerText.replace('🤍', '')) + 1;
+                element.innerText = `❤️ ${num}`; element.style.color = '#FF3B30';
+                showToast('点赞成功');
+            } else {
+                let num = parseInt(element.innerText.replace('❤️', '')) - 1;
+                element.innerText = `🤍 ${num}`; element.style.color = '#888';
+            }
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const val = input.value.trim();
+            if(!val) return showToast('请输入内容');
+
+            const box = document.getElementById('chat-box');
+            const userBubble = document.createElement('div');
+            userBubble.className = 'chat-bubble bubble-user'; userBubble.innerText = val;
+            box.appendChild(userBubble); input.value = ''; box.scrollTop = box.scrollHeight; 
+
+            setTimeout(() => {
+                const aiBubble = document.createElement('div');
+                aiBubble.className = 'chat-bubble bubble-ai';
+                aiBubble.innerText = "好的，我已经收到您的需求。正在为您匹配最适合的亲子路线和攻略，稍后为您生成详细行程单，请稍等哦~ ✨";
+                box.appendChild(aiBubble); box.scrollTop = box.scrollHeight; 
+            }, 1000);
+        }
+
+        function openPay(name, price) {
+            document.getElementById('pay-title').innerText = '购买：' + name;
+            document.getElementById('pay-price').innerText = '¥ ' + price + '.00';
+            document.getElementById('pay-mask').style.display = 'block';
+            setTimeout(() => { document.getElementById('pay-mask').style.opacity = '1'; document.getElementById('pay-sheet').classList.add('show'); }, 10);
+        }
+        function closePay() {
+            document.getElementById('pay-sheet').classList.remove('show'); document.getElementById('pay-mask').style.opacity = '0';
+            setTimeout(() => document.getElementById('pay-mask').style.display = 'none', 300);
+        }
+        function processPay(method) { showToast('正在拉起' + method + '...'); setTimeout(() => { closePay(); showToast('✅ 支付成功！'); }, 1000); }
+    </script>
+</body>
+</html>
